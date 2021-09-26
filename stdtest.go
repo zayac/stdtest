@@ -20,7 +20,8 @@ type TestConfig struct {
 	Input string `json:"input"`
 	// Output is a set of independent strings that are expected to be found in
 	// the output.
-	Output []string `json:"output"`
+	Output          []string `json:"output"`
+	IsOutputOrdered bool     `json:"is_output_ordered"`
 }
 
 // openTestConfig opens a `.json` file, deserializes it and returns
@@ -42,13 +43,27 @@ func openTestConfig(path string) ([]TestConfig, error) {
 	return tests, nil
 }
 
-// matchOutput checks if all strings in `testStrs` are found in output (in any
+// matchOutputUnordered checks if all strings in `testStrs` are found in output (in any
 // order). If not, the error is returned.
-func matchOutput(output string, testStrs []string) error {
+func matchOutputUnordered(output string, testStrs []string) error {
 	for _, str := range testStrs {
 		if !strings.Contains(output, str) {
 			return fmt.Errorf("%q not found in output %q", str, output)
 		}
+	}
+	return nil
+}
+
+// matchOutputOrdered checks if all strings in `testStrs` are found in output in
+// the particular order. If not, the error is returned.
+func matchOutputOrdered(output string, testStrs []string) error {
+	var startIndex int
+	for _, str := range testStrs {
+		index := strings.Index(output[startIndex:], str)
+		if index == -1 {
+			return fmt.Errorf("%q not found in output %q", str, output)
+		}
+		startIndex = index + len(str)
 	}
 	return nil
 }
@@ -70,7 +85,11 @@ func testProgram(path string, tests []TestConfig) error {
 		if err != nil {
 			return err
 		}
-		if err := matchOutput(string(out), test.Output); err != nil {
+		matchF := matchOutputUnordered
+		if test.IsOutputOrdered {
+			matchF = matchOutputOrdered
+		}
+		if err := matchF(string(out), test.Output); err != nil {
 			return err
 		}
 	}

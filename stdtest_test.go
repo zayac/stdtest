@@ -18,7 +18,8 @@ func TestOpenTestConfig(t *testing.T) {
 [{
 	"name":"test",
 	"input":"1 2 3",
-	"output":["4", "5", "6"]
+	"output":["4", "5", "6"],
+	"is_output_ordered": true
 }]`)
 	if _, err := tmpFile.Write(content); err != nil {
 		t.Fatal(err)
@@ -32,14 +33,14 @@ func TestOpenTestConfig(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	want := []TestConfig{
-		{Name: "test", Input: "1 2 3", Output: []string{"4", "5", "6"}},
+		{Name: "test", Input: "1 2 3", Output: []string{"4", "5", "6"}, IsOutputOrdered: true},
 	}
 	if !reflect.DeepEqual(want, got) {
 		t.Errorf("want %v, got %v", want, got)
 	}
 }
 
-func TestMatchOutput(t *testing.T) {
+func TestMatchOutputUnordered(t *testing.T) {
 	for _, tst := range []struct {
 		name    string
 		inStr   string
@@ -57,8 +58,37 @@ func TestMatchOutput(t *testing.T) {
 			wantErr: true,
 		},
 	} {
-		if got := matchOutput(tst.inStr, tst.inStrs); (got != nil) != tst.wantErr {
-			t.Errorf("want error: %v, got %q", tst.wantErr, got)
+		if got := matchOutputUnordered(tst.inStr, tst.inStrs); (got != nil) != tst.wantErr {
+			t.Errorf("%s: want error: %v, got %q", tst.name, tst.wantErr, got)
+		}
+	}
+}
+
+func TestMatchOutputOrdered(t *testing.T) {
+	for _, tst := range []struct {
+		name    string
+		inStr   string
+		inStrs  []string
+		wantErr bool
+	}{
+		{
+			name:    "wrong order",
+			inStr:   "zurich riga moscow daugavpils",
+			inStrs:  []string{"moscow", "zurich"},
+			wantErr: true,
+		}, {
+			name:   "found",
+			inStr:  "zurich riga moscow daugavpils",
+			inStrs: []string{"zurich", "riga"},
+		}, {
+			name:    "not found",
+			inStr:   "zurich riga moscow daugavpils",
+			inStrs:  []string{"zurich", "liepaja"},
+			wantErr: true,
+		},
+	} {
+		if got := matchOutputOrdered(tst.inStr, tst.inStrs); (got != nil) != tst.wantErr {
+			t.Errorf("%s: want error: %v, got %q", tst.name, tst.wantErr, got)
 		}
 	}
 }
